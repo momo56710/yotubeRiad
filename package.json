@@ -1,0 +1,11 @@
+{
+  "name": "yotube",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "search": "node yt.js search",
+    "export": "node yt.js export",
+    "serve": "node yt.js serve"
+  }
+}

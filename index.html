@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YouTuber Finder</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235b5bf0'/%3E%3Cpath d='M13 10.5v11l9-5.5z' fill='white'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f6f7fb; --surface: #ffffff; --surface-2: #f1f2f8; --line: #e4e6ef; --line-strong: #d3d6e4;
+    --fg: #14162b; --muted: #6a6f8c; --accent: #5b5bf0; --accent-fg: #fff; --accent-soft: #ececff;
+    --good: #12a36b; --good-soft: #def6ec; --warn: #d98a06; --warn-soft: #fdf0d3; --bad: #dc3b4a; --bad-soft: #fde4e7;
+    --shadow: 0 1px 2px rgba(20,22,43,.05), 0 4px 14px rgba(20,22,43,.05);
+    --shadow-lg: 0 10px 40px rgba(20,22,43,.18);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1020; --surface: #181a30; --surface-2: #20223c; --line: #2a2d4a; --line-strong: #383c60;
+      --fg: #eceefb; --muted: #9296b8; --accent: #7b7bff; --accent-fg: #0f1020; --accent-soft: #26285a;
+      --good: #35d49a; --good-soft: #123a30; --warn: #f0b13a; --warn-soft: #3b2f12; --bad: #ff6b78; --bad-soft: #43202a;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+      --shadow-lg: 0 10px 40px rgba(0,0,0,.55);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  button, input, select { font: inherit; color: inherit; }
+  a { color: inherit; }
+  svg { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* header */
+  header { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px; }
+  .head { display: flex; align-items: center; gap: 14px; height: 60px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: -.01em; }
+  .logo i { width: 30px; height: 30px; border-radius: 9px; background: var(--accent); display: grid; place-items: center; }
+  .logo i svg { fill: var(--accent-fg); stroke: none; width: 14px; height: 14px; margin-left: 2px; }
+  .grow { flex: 1; }
+  .meter { display: flex; flex-direction: column; gap: 4px; min-width: 150px; font-size: 11px; color: var(--muted); cursor: help; }
+  .meter b { color: var(--fg); font-weight: 600; }
+  .bar { height: 5px; border-radius: 9px; background: var(--surface-2); overflow: hidden; }
+  .bar span { display: block; height: 100%; background: var(--good); border-radius: 9px; transition: width .4s, background .3s; }
+  .bar span.warn { background: var(--warn); } .bar span.bad { background: var(--bad); }
+
+  /* buttons */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; font-weight: 600; text-decoration: none; white-space: nowrap; transition: background .15s, border-color .15s, transform .05s; }
+  .btn:hover { background: var(--surface-2); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; }
+  .btn.primary:hover { filter: brightness(1.08); background: var(--accent); }
+  .btn.ghost { border-color: transparent; background: transparent; }
+  .btn.ghost:hover { background: var(--surface-2); }
+  .btn.small { height: 32px; padding: 0 10px; font-size: 13px; border-radius: 8px; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
+  .dot.ok { background: var(--good); }
+
+  /* hero search */
+  .hero { margin: 26px 0 18px; }
+  .hero h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -.02em; }
+  .hero p { margin: 0 0 16px; color: var(--muted); }
+  .search { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 12px; box-shadow: var(--shadow); }
+  .qrow { display: flex; gap: 10px; flex-wrap: wrap; }
+  .qbox { flex: 1 1 320px; display: flex; align-items: center; gap: 10px; height: 50px; padding: 0 16px; border-radius: 12px; background: var(--surface-2); border: 1px solid transparent; }
+  .qbox:focus-within { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .qbox svg { width: 19px; height: 19px; color: var(--muted); }
+  .qbox input { flex: 1; border: 0; outline: 0; background: transparent; font-size: 16px; min-width: 0; }
+  .qrow .btn { height: 50px; padding: 0 22px; border-radius: 12px; font-size: 15px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .field { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); }
+  .field select, .field input { height: 36px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line-strong); background: var(--surface); text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 14px; color: var(--fg); min-width: 150px; }
+  .field select:focus, .field input:focus, .toolbar input:focus, .toolbar select:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .note { margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .status-line { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 13px; }
+  .status-line.hidden { display: none; }
+  .status-line.busy { background: var(--accent-soft); }
+  .status-line.ok { background: var(--good-soft); color: var(--good); }
+  .status-line.err { background: var(--bad-soft); color: var(--bad); }
+  .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent); border-top-color: var(--accent); animation: sp .8s linear infinite; flex: none; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+
+  /* toolbar */
+  .toolbar { display: flex; flex-wrap: wrap; gap: 6px; row-gap: 10px; align-items: center; margin: 22px 0 14px; }
+  .toolbar input[type=search], .toolbar select { height: 36px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line-strong); background: var(--surface); }
+  .toolbar input[type=search] { width: 150px; }
+  .count { font-weight: 600; margin-right: 6px; }
+  .count small { color: var(--muted); font-weight: 400; }
+  .check { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface); cursor: pointer; user-select: none; }
+  .check input { accent-color: var(--accent); }
+  .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 9px; overflow: hidden; background: var(--surface); }
+  .seg button { width: 38px; height: 34px; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; color: var(--muted); }
+  .seg button.on { background: var(--accent-soft); color: var(--accent); }
+
+  /* cards */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 16px; padding-bottom: 60px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; display: flex; flex-direction: column; gap: 12px; transition: transform .15s, box-shadow .15s, border-color .15s; animation: in .25s ease both; }
+  .card:hover { transform: translateY(-2px); border-color: var(--line-strong); box-shadow: 0 2px 4px rgba(20,22,43,.06), 0 10px 26px rgba(20,22,43,.10); }
+  @keyframes in { from { opacity: 0; transform: translateY(6px); } }
+  .top { display: flex; gap: 12px; align-items: center; }
+  .av { width: 54px; height: 54px; border-radius: 50%; flex: none; position: relative; overflow: hidden; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 19px; }
+  .av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .25s; }
+  .av.sm { width: 34px; height: 34px; font-size: 13px; }
+  .who { min-width: 0; flex: 1; }
+  .name { font-weight: 700; font-size: 15px; text-decoration: none; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name:hover { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; }
+  .stat b { display: block; font-size: 16px; letter-spacing: -.01em; }
+  .stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .mail .sub { flex: none; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--accent-soft); color: var(--accent); text-decoration: none; }
+  .chip.act-good { background: var(--good-soft); color: var(--good); } .chip.act-warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.act-none { background: var(--surface-2); color: var(--muted); }
+  .chip.link { background: var(--surface-2); color: var(--fg); font-weight: 500; }
+  .chip.link:hover { background: var(--accent-soft); color: var(--accent); }
+  .contact { border: 1px dashed var(--line-strong); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 8px; }
+  .mail { display: flex; align-items: center; gap: 8px; min-height: 28px; }
+  .mail > svg { color: var(--muted); }
+  .mail a { font-weight: 600; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .mail a:hover { color: var(--accent); text-decoration: underline; }
+  .mail .none { color: var(--muted); font-size: 12.5px; }
+  .iconbtn { margin-left: auto; width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; display: grid; place-items: center; color: var(--muted); flex: none; }
+  .iconbtn:hover { color: var(--accent); border-color: var(--accent); }
+  .desc { color: var(--muted); font-size: 12.5px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0; }
+  .foot { display: flex; gap: 8px; align-items: center; margin-top: auto; }
+  .stsel { appearance: none; -webkit-appearance: none; height: 32px; padding: 0 28px 0 12px; border-radius: 99px; border: 1px solid var(--line-strong); font-weight: 600; font-size: 12.5px; cursor: pointer; background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%239296b8' stroke-width='2'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 11px center; }
+  .stsel.contacted { background-color: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .stsel.replied { background-color: var(--good-soft); color: var(--good); border-color: transparent; }
+  .stsel.skip { background-color: var(--surface-2); color: var(--muted); }
+  .foot .btn { margin-left: auto; }
+
+  /* table */
+  .tablewrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: auto; box-shadow: var(--shadow); margin-bottom: 60px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { background: var(--surface-2); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); position: sticky; top: 0; }
+  tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; } th.num { text-align: right; }
+  .cellwho { display: flex; align-items: center; gap: 10px; }
+  .cellwho a { font-weight: 600; text-decoration: none; } .cellwho a:hover { color: var(--accent); }
+
+  /* empty + skeleton */
+  .empty { text-align: center; padding: 56px 16px 80px; color: var(--muted); }
+  .empty svg.art { width: 150px; height: 110px; stroke: none; margin-bottom: 8px; }
+  .empty h2 { color: var(--fg); margin: 0 0 6px; font-size: 18px; }
+  .empty p { margin: 0 auto; max-width: 420px; }
+  .sk { border-radius: var(--radius); height: 250px; background: linear-gradient(100deg, var(--surface) 30%, var(--surface-2) 50%, var(--surface) 70%) 0 0 / 300% 100%; border: 1px solid var(--line); animation: sh 1.3s infinite linear; }
+  @keyframes sh { to { background-position: -150% 0; } }
+
+  /* modal */
+  dialog { border: 1px solid var(--line); border-radius: 18px; padding: 0; width: min(520px, calc(100vw - 32px)); background: var(--surface); color: var(--fg); box-shadow: var(--shadow-lg); }
+  dialog::backdrop { background: rgba(10,10,25,.55); backdrop-filter: blur(3px); }
+  .dlg { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+  .dlg h3 { margin: 0; font-size: 18px; }
+  .dlg p { margin: 0; color: var(--muted); }
+  .keyin { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface-2); }
+  .keyin:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--surface); }
+  .keyin input { flex: 1; border: 0; outline: 0; background: transparent; min-width: 0; font-family: ui-monospace, Consolas, monospace; }
+  .keyin button { border: 0; background: transparent; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+  details { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  details summary { cursor: pointer; font-weight: 600; }
+  details ol { margin: 10px 0 0; padding-left: 20px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+  details a { color: var(--accent); }
+  .actions { display: flex; gap: 8px; align-items: center; }
+  .msg { font-size: 13px; min-height: 18px; } .msg.err { color: var(--bad); } .msg.ok { color: var(--good); }
+  .muted { color: var(--muted); font-size: 13px; }
+
+  /* toast */
+  #toasts { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 50; pointer-events: none; }
+  .toast { background: var(--fg); color: var(--bg); padding: 9px 16px; border-radius: 99px; font-weight: 600; font-size: 13px; box-shadow: var(--shadow-lg); animation: in .2s ease both; }
+
+  @media (max-width: 640px) {
+    .meter { display: none; } .hero h1 { font-size: 22px; } .toolbar input[type=search] { width: 100%; flex: 1 1 100%; }
+    .field, .field select, .field input { min-width: 0; width: 100%; } .field { flex: 1 1 140px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap head">
+    <div class="logo"><i><svg viewBox="0 0 24 24"><path d="M6 3l15 9-15 9z"/></svg></i> YouTuber Finder</div>
+    <div class="grow"></div>
+    <button class="btn" id="keyBtn" type="button"><span class="dot" id="keyDot"></span><span id="keyLbl">API key</span></button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Find YouTubers to reach out to</h1>
+    <p>Search any topic, then sort and filter creators by size, country and activity, with contact info ready to copy.</p>
+    <form id="searchForm" class="search" autocomplete="off">
+      <div class="qrow">
+        <label class="qbox">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="s_keyword" required placeholder="What kind of channels? e.g. indie game reviews, vegan recipes, home workouts" aria-label="What kind of channels?">
+        </label>
+        <button id="s_btn" class="btn primary" type="submit">Search</button>
+        <button id="s_more" class="btn" type="button" disabled title="Adds about 50 more channels from the same search. Each click uses a good chunk of today's allowance.">Find more</button>
+      </div>
+      <div class="filters">
+        <label class="field">Country
+          <select id="s_region">
+            <option value="">Anywhere</option><option value="US">United States</option><option value="GB">United Kingdom</option>
+            <option value="CA">Canada</option><option value="AU">Australia</option><option value="DE">Germany</option>
+            <option value="FR">France</option><option value="IN">India</option><option value="BR">Brazil</option>
+            <option value="ES">Spain</option><option value="AE">UAE</option><option value="EG">Egypt</option>
+          </select>
+        </label>
+        <label class="field">Language
+          <select id="s_lang">
+            <option value="">Any</option><option value="en">English</option><option value="es">Spanish</option>
+            <option value="fr">French</option><option value="de">German</option><option value="pt">Portuguese</option>
+            <option value="ar">Arabic</option><option value="hi">Hindi</option>
+          </select>
+        </label>
+        <label class="field">Channel size
+          <select id="s_size">
+            <option value="1000-10000">Micro (1K – 10K)</option>
+            <option value="10000-100000" selected>Small (10K – 100K)</option>
+            <option value="100000-1000000">Mid (100K – 1M)</option>
+            <option value="1000000-">Large (1M+)</option>
+            <option value="-">Any size</option>
+          </select>
+        </label>
+        <label class="field">Label (optional)
+          <input id="s_niche" placeholder="e.g. gaming">
+        </label>
+      </div>
+      <div id="s_status" class="status-line hidden" role="status"></div>
+      <div class="note">Search finds at least 60 channels. Each <b>Find more</b> adds about 50 more, until there are no more to find.</div>
+    </form>
+  </section>
+
+  <section>
+    <div class="toolbar" id="toolbar" style="display:none">
+      <span class="count" id="count"></span>
+      <input type="search" id="q" placeholder="Filter results…" aria-label="Filter results">
+      <select id="niche" aria-label="Label"><option value="">All labels</option></select>
+      <select id="status" aria-label="Status">
+        <option value="">Any status</option><option value="new">New</option><option value="contacted">Contacted</option>
+        <option value="replied">Replied</option><option value="skip">Skip</option>
+      </select>
+      <label class="check"><input type="checkbox" id="hasEmail"> Has email</label>
+      <label class="check"><input type="checkbox" id="hasX"> Has X</label>
+      <select id="sort" aria-label="Sort by">
+        <option value="subs-desc">Most subscribers</option><option value="subs-asc">Fewest subscribers</option>
+        <option value="active">Recently active</option><option value="views">Most views</option>
+        <option value="name">Name A–Z</option>
+      </select>
+      <span class="grow"></span>
+      <button class="btn small ghost" id="showSaved" type="button"></button>
+      <button class="btn small" id="copyEmails" type="button"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg> Copy emails</button>
+      <a class="btn small" href="/api/export.csv"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg> CSV</a>
+      <div class="seg" role="group" aria-label="View">
+        <button id="vCards" title="Cards" aria-label="Cards"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>
+        <button id="vTable" title="Table" aria-label="Table"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      </div>
+    </div>
+
+    <div id="results"></div>
+  </section>
+</main>
+
+<dialog id="keyDialog">
+  <form method="dialog" class="dlg" id="keyForm">
+    <h3>YouTube API key</h3>
+    <p>This app uses Google's free YouTube Data API to look up channels. Your key is saved on this computer only.</p>
+    <div id="keyHint" class="muted"></div>
+    <label class="keyin">
+      <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3m-4 4l3 3"/></svg>
+      <input id="k_key" type="password" placeholder="Paste your key (starts with AIza…)" autocomplete="off" spellcheck="false">
+      <button type="button" id="k_eye" title="Show / hide" aria-label="Show or hide key"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </label>
+    <div id="k_msg" class="msg" role="status"></div>
+    <details>
+      <summary>How do I get a free key? (about 3 minutes, no card needed)</summary>
+      <ol>
+        <li>Open <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud Console</a> and create a project (any name).</li>
+        <li>Open <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener">YouTube Data API v3</a> and click <b>Enable</b>.</li>
+        <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Credentials</a>, then <b>Create credentials</b> and <b>API key</b>.</li>
+        <li>Copy the key and paste it above, then press Save.</li>
+      </ol>
+    </details>
+    <div class="actions">
+      <button type="button" class="btn small ghost" id="k_remove" style="color:var(--bad)">Remove key</button>
+      <span class="grow"></span>
+      <button type="button" class="btn" id="k_cancel">Close</button>
+      <button type="submit" class="btn primary" id="k_save">Save key</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toasts"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ICON = {
+  mail: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
+  copy: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>',
+  ext: '<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></svg>',
+};
+const store = {
+  get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+/* ---------- helpers ---------- */
+function compact(n) {
+  if (n == null) return 'Hidden';
+  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'K';
+  return String(n);
+}
+function ago(iso) {
+  if (!iso) return null;
+  const d = Math.floor((Date.now() - new Date(iso)) / 864e5);
+  if (d < 1) return 'today'; if (d === 1) return 'yesterday'; if (d < 31) return d + ' days ago';
+  if (d < 365) return Math.round(d / 30) + ' mo ago'; return Math.round(d / 365) + ' yr ago';
+}
+function activity(iso) {
+  if (!iso) return { cls: 'act-none', label: 'No uploads found' };
+  const d = (Date.now() - new Date(iso)) / 864e5, a = ago(iso);
+  return d <= 30 ? { cls: 'act-good', label: 'Active · ' + a } : d <= 120 ? { cls: 'act-warn', label: 'Posted ' + a } : { cls: 'act-none', label: 'Last post ' + a };
+}
+const flag = (cc) => /^[A-Z]{2}$/.test(cc || '') ? String.fromCodePoint(...[...cc].map((c) => 127397 + c.charCodeAt(0))) : '';
+const initials = (n) => (n.match(/[\p{L}\p{N}]/gu) || ['?']).slice(0, 2).join('').toUpperCase();
+function hue(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
+const safeUrl = (u) => /^https?:\/\//i.test(u) ? u : '#';
+function linkLabel(u) {
+  try {
+    const h = new URL(u).hostname.replace(/^www\./, '');
+    const map = { 'instagram.com': 'Instagram', 'twitter.com': 'X / Twitter', 'x.com': 'X / Twitter', 'tiktok.com': 'TikTok', 'twitch.tv': 'Twitch', 'discord.gg': 'Discord', 'discord.com': 'Discord', 'facebook.com': 'Facebook', 'linktr.ee': 'Linktree', 'patreon.com': 'Patreon' };
+    return map[h] || h;
+  } catch { return 'Link'; }
+}
+function toast(t) {
+  const el = document.createElement('div'); el.className = 'toast'; el.textContent = t;
+  $('toasts').appendChild(el); setTimeout(() => el.remove(), 2200);
+}
+async function copy(text, label) {
+  try { await navigator.clipboard.writeText(text); }
+  catch { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  toast(label || 'Copied');
+}
+function avatar(r, small) {
+  const bg = `linear-gradient(135deg,hsl(${hue(r.name)} 65% 52%),hsl(${(hue(r.name) + 40) % 360} 65% 42%))`;
+  const img = r.thumb ? `<img src="${esc(r.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" onload="this.style.opacity=1" onerror="this.remove()">` : '';
+  return `<div class="av${small ? ' sm' : ''}" style="background:${bg}">${esc(initials(r.name))}${img}</div>`;
+}
+
+/* ---------- state ---------- */
+let rows = [], showAll = false, savedCount = 0, canMore = false, hasKey = false, usage = 0, limit = 10000;
+let view = store.get('view', 'cards');
+
+/* ---------- settings / key ---------- */
+async function loadSettings() {
+  try {
+    const s = await (await fetch('/api/settings')).json();
+    hasKey = s.hasKey; usage = s.usage; limit = s.limit;
+    $('keyDot').className = 'dot' + (hasKey ? ' ok' : '');
+    $('keyLbl').textContent = hasKey ? 'API key' : 'Add API key';
+    $('keyHint').textContent = hasKey ? 'Current key: ' + s.keyHint : '';
+    $('k_remove').style.display = hasKey ? '' : 'none';
+    const pct = Math.min(100, Math.round(usage / limit * 100));
+    $('meterTxt').textContent = `${usage.toLocaleString()} / ${limit.toLocaleString()}`;
+    const b = $('meterBar'); b.style.width = Math.max(pct, usage ? 2 : 0) + '%'; b.className = pct >= 90 ? 'bad' : pct >= 70 ? 'warn' : '';
+    return s;
+  } catch { return {}; }
+}
+function openKey() { $('k_msg').textContent = ''; $('k_msg').className = 'msg'; $('k_key').value = ''; $('keyDialog').showModal(); setTimeout(() => $('k_key').focus(), 50); }
+$('keyBtn').onclick = openKey;
+$('k_cancel').onclick = () => $('keyDialog').close();
+$('k_eye').onclick = () => { const i = $('k_key'); i.type = i.type === 'password' ? 'text' : 'password'; };
+$('keyForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const m = $('k_msg'), key = $('k_key').value.trim();
+  if (!key) { m.className = 'msg err'; m.textContent = 'Paste your key first.'; return; }
+  m.className = 'msg'; m.textContent = 'Checking the key with Google…'; $('k_save').disabled = true;
+  try {
+    const res = await fetch('/api/key', { method: 'POST', body: JSON.stringify({ key }) });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    $('keyDialog').close(); toast('API key saved'); await loadSettings(); setTimeout(load, 4000); // pictures for saved channels
+  } catch (err) { m.className = 'msg err'; m.textContent = err.message; }
+  $('k_save').disabled = false;
+});
+$('k_remove').onclick = async () => {
+  if (!confirm('Remove the saved API key from this computer?')) return;
+  await fetch('/api/key', { method: 'POST', body: JSON.stringify({ key: '' }) });
+  $('keyDialog').close(); toast('API key removed'); loadSettings();
+};
+
+/* ---------- data ---------- */
+function fillSelect(id, vals, first) {
+  const el = $(id), cur = el.value;
+  el.innerHTML = `<option value="">${first}</option>` + [...new Set(vals.filter(Boolean))].sort().map((v) => `<option>${esc(v)}</option>`).join('');
+  el.value = cur;
+}
+async function load() {
+  const d = await (await fetch('/api/channels' + (showAll ? '?all=1' : ''))).json();
+  rows = d.rows; savedCount = d.saved;
+  if (!showAll) { canMore = d.canMore; syncMore(false); }
+  fillSelect('niche', rows.map((r) => r.niche), 'All labels');
+  $('showSaved').textContent = showAll ? 'Hide saved' : `Saved (${savedCount})`;
+  $('showSaved').style.display = savedCount ? '' : 'none';
+  render();
+}
+function syncMore(exhausted) {
+  const b = $('s_more');
+  b.disabled = !canMore;
+  b.textContent = exhausted ? 'No more to find' : 'Find more';
+}
+
+/* ---------- render ---------- */
+const SORTS = {
+  'subs-desc': (a, b) => (b.subscribers ?? -1) - (a.subscribers ?? -1),
+  'subs-asc': (a, b) => (a.subscribers ?? -1) - (b.subscribers ?? -1),
+  active: (a, b) => new Date(b.lastUpload || 0) - new Date(a.lastUpload || 0),
+  views: (a, b) => b.views - a.views,
+  name: (a, b) => a.name.localeCompare(b.name),
+};
+function filtered() {
+  const q = $('q').value.toLowerCase(), niche = $('niche').value, st = $('status').value, em = $('hasEmail').checked, hx = $('hasX').checked;
+  return rows.filter((r) =>
+    (!q || (r.name + ' ' + r.description + ' ' + r.email + ' ' + (r.twitter || '') + ' ' + r.country + ' ' + r.niche).toLowerCase().includes(q)) &&
+    (!niche || r.niche === niche) && (!st || r.status === st) && (!em || r.email) && (!hx || r.twitter)
+  ).sort(SORTS[$('sort').value]);
+}
+
+const XICON = '<svg viewBox="0 0 24 24"><path d="M4 4l16 16M20 4L4 20"/></svg>';
+const xRow = (r) => r.twitter
+  ? `<div class="mail">${XICON}<a href="https://x.com/${esc(r.twitter)}" target="_blank" rel="noopener noreferrer">@${esc(r.twitter)}</a><span class="sub">on X</span><button class="iconbtn" data-copy="@${esc(r.twitter)}" title="Copy handle" aria-label="Copy X handle">${ICON.copy}</button></div>`
+  : `<div class="mail">${XICON}<span class="none">No X / Twitter account listed</span></div>`;
+const statusSelect = (r) => `<select class="stsel ${esc(r.status)}" data-id="${esc(r.id)}" aria-label="Outreach status">${['new', 'contacted', 'replied', 'skip'].map((s) => `<option value="${s}"${s === r.status ? ' selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select>`;
+
+function cardHTML(r, i) {
+  const act = activity(r.lastUpload);
+  const emails = r.email ? r.email.split('; ') : [];
+  const mail = emails.length
+    ? `<div class="mail">${ICON.mail}<a href="mailto:${esc(emails[0])}" title="${esc(r.email)}">${esc(emails[0])}</a>${emails.length > 1 ? `<span class="sub">+${emails.length - 1}</span>` : ''}<button class="iconbtn" data-copy="${esc(r.email.replace(/; /g, ', '))}" title="Copy email" aria-label="Copy email">${ICON.copy}</button></div>`
+    : `<div class="mail">${ICON.mail}<span class="none">No public email. Check the channel's About tab.</span></div>`;
+  const links = (r.links || []).filter((u) => !/^https?:\/\/(www\.|mobile\.)?(twitter|x)\.com\//i.test(u)).slice(0, 4).map((u) => `<a class="chip link" href="${esc(safeUrl(u))}" target="_blank" rel="noopener noreferrer">${esc(linkLabel(u))}</a>`).join('');
+  return `<article class="card" style="animation-delay:${Math.min(i, 12) * 25}ms">
+    <div class="top">${avatar(r)}
+      <div class="who"><a class="name" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer" title="${esc(r.name)}">${esc(r.name)}</a>
+      <div class="sub">${esc(r.handle || '')}${r.handle && r.country ? ' · ' : ''}${r.country ? flag(r.country) + ' ' + esc(r.country) : ''}</div></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>${compact(r.subscribers)}</b><span>Subscribers</span></div>
+      <div class="stat"><b>${compact(r.views)}</b><span>Views</span></div>
+      <div class="stat"><b>${compact(r.videos)}</b><span>Videos</span></div>
+    </div>
+    <div class="chips"><span class="chip ${act.cls}">${esc(act.label)}</span>${r.niche ? `<span class="chip">${esc(r.niche)}</span>` : ''}</div>
+    <div class="contact">${mail}${xRow(r)}${links ? `<div class="chips">${links}</div>` : ''}</div>
+    ${r.description ? `<p class="desc">${esc(r.description)}</p>` : ''}
+    <div class="foot">${statusSelect(r)}<a class="btn small" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">Open channel ${ICON.ext}</a></div>
+  </article>`;
+}
+
+function tableHTML(list) {
+  return `<div class="tablewrap"><table><thead><tr><th>Channel</th><th class="num">Subscribers</th><th>Label</th><th>Country</th><th>Email</th><th>X / Twitter</th><th class="num">Videos</th><th class="num">Views</th><th>Last upload</th><th>Status</th></tr></thead><tbody>${list.map((r) => `<tr>
+    <td><div class="cellwho">${avatar(r, true)}<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.name)}</a></div></td>
+    <td class="num">${r.subscribers == null ? 'Hidden' : r.subscribers.toLocaleString()}</td><td>${esc(r.niche)}</td><td>${r.country ? flag(r.country) + ' ' + esc(r.country) : ''}</td>
+    <td>${r.email ? `<a href="mailto:${esc(r.email.split('; ')[0])}">${esc(r.email)}</a>` : '<span class="sub">–</span>'}</td>
+    <td>${r.twitter ? `<a href="https://x.com/${esc(r.twitter)}" target="_blank" rel="noopener noreferrer">@${esc(r.twitter)}</a>` : '<span class="sub">–</span>'}</td><td class="num">${r.videos.toLocaleString()}</td><td class="num">${r.views.toLocaleString()}</td><td>${esc((r.lastUpload || '').slice(0, 10)) || '–'}</td>
+    <td>${statusSelect(r)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+const EMPTY_ART = `<svg class="art" viewBox="0 0 150 110" aria-hidden="true"><rect x="14" y="22" width="86" height="64" rx="10" fill="var(--accent-soft)"/><circle cx="36" cy="44" r="9" fill="var(--accent)" opacity=".85"/><rect x="52" y="39" width="36" height="6" rx="3" fill="var(--accent)" opacity=".5"/><rect x="52" y="50" width="24" height="5" rx="2.5" fill="var(--accent)" opacity=".3"/><rect x="26" y="66" width="62" height="6" rx="3" fill="var(--accent)" opacity=".25"/><circle cx="104" cy="66" r="22" fill="var(--surface)" stroke="var(--accent)" stroke-width="5"/><path d="M120 82l16 16" stroke="var(--accent)" stroke-width="7" stroke-linecap="round"/></svg>`;
+
+function render(busy) {
+  const list = filtered();
+  $('vCards').className = view === 'cards' ? 'on' : ''; $('vTable').className = view === 'table' ? 'on' : '';
+  $('count').innerHTML = rows.length ? `${list.length} channel${list.length === 1 ? '' : 's'}${list.length !== rows.length ? ` <small>of ${rows.length}</small>` : ''}` : '';
+  $('toolbar').style.display = rows.length ? '' : 'none';
+  const el = $('results');
+  if (!rows.length) {
+    el.innerHTML = busy ? `<div class="grid">${'<div class="sk"></div>'.repeat(6)}</div>`
+      : `<div class="empty">${EMPTY_ART}<h2>${showAll ? 'Your saved list is empty' : 'No channels yet'}</h2><p>${showAll ? 'Run a search and the channels you find are saved here.' : 'Type a topic above and press <b>Search</b>. Results show up here as cards you can sort, filter and copy contact info from.'}</p></div>`;
+    if (savedCount && !showAll && !busy) $('toolbar').style.display = '';
+    return;
+  }
+  if (!list.length) { el.innerHTML = `<div class="empty"><h2>Nothing matches these filters</h2><p>Try clearing the filter box or turning off "Has email".</p></div>`; return; }
+  el.innerHTML = view === 'cards' ? `<div class="grid">${list.map(cardHTML).join('')}</div>` : tableHTML(list);
+}
+
+/* ---------- events ---------- */
+['q', 'niche', 'status', 'hasEmail', 'hasX', 'sort'].forEach((id) => $(id).addEventListener('input', () => render()));
+$('vCards').onclick = () => { view = 'cards'; store.set('view', view); render(); };
+$('vTable').onclick = () => { view = 'table'; store.set('view', view); render(); };
+$('showSaved').onclick = () => { showAll = !showAll; load(); };
+$('copyEmails').onclick = () => {
+  const emails = [...new Set(filtered().flatMap((r) => (r.email ? r.email.split('; ') : [])))];
+  if (!emails.length) return toast('No emails in the current list');
+  copy(emails.join('; '), `Copied ${emails.length} email${emails.length === 1 ? '' : 's'}`);
+};
+$('results').addEventListener('click', (e) => { const b = e.target.closest('[data-copy]'); if (b) copy(b.dataset.copy, 'Email copied'); });
+$('results').addEventListener('change', (e) => {
+  const id = e.target.dataset?.id; if (!id) return;
+  const r = rows.find((x) => x.id === id); r.status = e.target.value;
+  e.target.className = 'stsel ' + r.status;
+  fetch('/api/status', { method: 'POST', body: JSON.stringify({ id, status: r.status }) });
+});
+
+/* ---------- search ---------- */
+let timer;
+function setStatus(kind, html) {
+  const el = $('s_status'); el.className = 'status-line ' + (kind || 'hidden'); el.innerHTML = html || '';
+}
+async function doSearch(more) {
+  if (!hasKey) { openKey(); return; }
+  if (more && usage + 1500 > limit && !confirm("This may use up the rest of today's search allowance. Continue?")) return;
+  const [min, max] = $('s_size').value.split('-');
+  [$('s_btn'), $('s_more')].forEach((b) => (b.disabled = true));
+  (more ? $('s_more') : $('s_btn')).textContent = 'Searching…';
+  const t0 = Date.now();
+  const tick = () => setStatus('busy', `<span class="spin"></span><span>Looking for channels… ${Math.round((Date.now() - t0) / 1000)}s. This can take a minute or two, please keep this page open.</span>`);
+  tick(); timer = setInterval(tick, 1000);
+  if (!more) { showAll = false; if (!rows.length) render(true); }
+  let exhausted = false;
+  try {
+    const kw = $('s_keyword').value.trim();
+    const res = await fetch('/api/search', { method: 'POST', body: JSON.stringify({
+      keyword: kw, niche: $('s_niche').value.trim() || kw, region: $('s_region').value, lang: $('s_lang').value, min, max, more }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showAll = false; await load();
+    exhausted = data.exhausted; canMore = !data.exhausted;
+    const n = data.gained;
+    setStatus('ok', `<span>Added ${n} channel${n === 1 ? '' : 's'} (looked through ${data.examined}).` +
+      (data.exhausted ? ' That is everything available for this search. Try different words or a wider size for more.' : '') +
+      (data.reachedLimit ? ' Matches are rare for this size. Press Find more to keep going.' : '') +
+      (data.partial ? ' Stopped early: ' + esc(data.partial) : '') + '</span>');
+  } catch (err) {
+    setStatus('err', `<span>${esc(err.message)}</span>`);
+    if (!rows.length) render();
+  } finally {
+    clearInterval(timer); $('s_btn').disabled = false; $('s_btn').textContent = 'Search'; syncMore(exhausted); loadSettings();
+  }
+}
+$('searchForm').onsubmit = (e) => { e.preventDefault(); doSearch(false); };
+$('s_more').onclick = () => doSearch(true);
+
+/* ---------- start ---------- */
+(async () => {
+  const s = await loadSettings();
+  await load();
+  if (!s.hasKey) openKey();
+})();
+</script>
+</body>
+</html>
